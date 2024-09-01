@@ -1,36 +1,47 @@
+use clap::{Parser, Subcommand};
+use codecrafters_interpreter::*;
+use miette::{IntoDiagnostic, WrapErr};
 use std::env;
 use std::fs;
+use std::path::PathBuf; // Add this line
 
-fn main() {
-    let args: Vec<String> = env::args().collect();
-    if args.len() < 3 {
-        eprintln!("Usage: {} tokenize <filename>", args[0]);
-        return;
-    }
+/// Simple program to greet a person
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// Name of the person to greet
+    #[command(subcommand)]
+    command: Commands,
+}
+#[derive(Subcommand, Debug)]
+enum Commands {
+    /// does testing things
+    Tokenize {
+        /// lists test values
+        filename: PathBuf,
+    },
+}
 
-    let command = &args[1];
-    let filename = &args[2];
+fn main() -> miette::Result<()> {
+    let args = Args::parse();
 
-    match command.as_str() {
-        "tokenize" => {
+    match args.command {
+        Commands::Tokenize { filename } => {
             // You can use print statements as follows for debugging, they'll be visible when running tests.
             eprintln!("Logs from your program will appear here!");
 
-            let file_contents = fs::read_to_string(filename).unwrap_or_else(|_| {
-                eprintln!("Failed to read file {}", filename);
-                String::new()
-            });
+            //into_didactic() is a method that converts an error into a diagnostic error i.e non - minimal
+            //error to mieete error
 
-            // Uncomment this block to pass the first stage
-            if !file_contents.is_empty() {
-                panic!("Scanner not implemented");
-            } else {
-                println!("EOF  null"); // Placeholder, remove this line when implementing the scanner
+            let file_contents = fs::read_to_string(&filename)
+                .into_diagnostic()
+                .wrap_err_with(|| format!("reading '{}' failed ", filename.display()))?;
+            for token in Lexer::new(&file_contents) {
+                let token = token?;
+                println!("{token} ");
             }
-        }
-        _ => {
-            eprintln!("Unknown command: {}", command);
-            return;
+            // Uncomment this block to pass the first stage
         }
     }
+    Ok(())
 }
